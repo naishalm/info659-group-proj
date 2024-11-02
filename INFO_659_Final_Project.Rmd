@@ -1,7 +1,38 @@
 ---
 title: "INFO-659_Final_Project_Accident_Report_Data"
-author: "Megan Cunningham"
+author: "Rafi Ahmad, Naishal Chauhan, Megan Cunningham, and Jinsu Mathew"
 date: "2024-11-02"
 output: html_document
 ---
+# Analysis of Crash Report Sampling System (CRSS) 2022 Accident Data 
+The analysis of crash data for the years 2022 from the Crash Report Sampling System (CRSS) will be the focus of our study. The primary objective of  this project is to identify key factors contributing to high-severity accidents and provide insights for developing preventive strategies and optimizing emergency response efforts. Through the analysis of the CRSS data, we seek to pinpoint the major patterns and variables that lead to auto accidents, with an emphasis on how the environment, different kinds of vehicles, and driving habits affect collision results. In order to anticipate the severity of injuries and classify collision types according to vehicle involvement and road circumstances, we will investigate both clustering and classification algorithms. The results will help us comprehend collision causes better and provide guidance for enhancing road safety. Additionally, this information will allow emergency responders to better anticipate what staffing, medical, and other resources are needed, where they will be needed, and when. 
+
+We will be using the data provided by the National Highway Traffic Safety Administration’s (NHTSA) Crash Reporting Sampling System (CRSS) - NHTSA File Downloads | NHTSA. Our primary focus will be on the “accident.csv” file, which contains a wide range of accident types caused by various factors, not limited to vehicle-to-vehicle collisions but also covering incidents involving animals, utility problems, and environmental factors such as fallen trees. With attributes like region, type of road, time of day, severity of injuries, presence of alcohol, and other demographic and situational variables, this data offers a comprehensive view of factors surrounding motor vehicle collisions.  
+
+Prior to completing an exploratory data analysis (EDA) to compile the data distribution and spot trends, the data will be reviewed and cleansed to accommodate missing values and outliers. Initial analysis will involve exploring patterns such as accident hotspots, determining the time of day with high frequency of accidents, and exploring the correlation between certain variables (such as substance involvement) and injury severity. By understanding these patterns, the project aims to demonstrate how specific factors increase the likelihood of high severity accidents and highlight opportunities for intervention. 
+ 
+ 
+
+## Goals of Project
+1. Identify key factors contributing to high-severity accidents
+  - Key attributes: type of collision, location of collision, time of day, severity of crash, demographic information, injuries/outcome of crash
+2. Determine potential crash preventative strategies
+3. Optimize emergency response efforts
+
+## Preliminaries
+Load R packages:
+```{r}
+library(tidyverse)
+```
+
+##Load the Data
+```{r}
+accident.data.raw = read_delim(
+  "data_files/CRSS2022CSV/accident.csv",
+  delim=",",
+  na=" ",
+  )
+
+accident.data.raw
+```
 
