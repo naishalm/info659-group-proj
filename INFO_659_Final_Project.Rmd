@@ -25,7 +25,7 @@ Load R packages:
 library(tidyverse)
 ```
 
-##Load the Data
+## Load the Data
 ```{r}
 accident.data.raw = read_delim(
   "data_files/CRSS2022CSV/accident.csv",
@@ -35,4 +35,34 @@ accident.data.raw = read_delim(
 
 accident.data.raw
 ```
+## Cleanse the data
+```{r}
+accident.data = accident.data.raw %>%
+  mutate(NUM_INJ = ifelse(NUM_INJ>97, NA, NUM_INJ))
+
+accident.data
+```
+
+
+
+## Let's look at some distributions
+```{r}
+summary(accident.data$NUM_INJ)
+```
+
+```{r}
+ggplot(accident.data) +
+  aes(x=NUM_INJ, na.rm = TRUE) +
+  geom_histogram(binwidth=1,col="blue", fill="lightblue")+
+  geom_vline(xintercept = mean(accident.data$NUM_INJ, na.rm=TRUE),
+             color='black') +
+  geom_vline(xintercept = median(accident.data$NUM_INJ, na.rm=TRUE),
+             color='red')
+```
+```{r}
+ggplot(accident.data, aes(y=MAX_SEVNAME)) + 
+  geom_bar(stat="count", na.rm = TRUE)+ 
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5))
+```
+
 
