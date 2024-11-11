@@ -43,6 +43,74 @@ accident.data = accident.data.raw %>%
 accident.data
 ```
 
+## Load Person Data
+
+The person data file includes list of individuals involved in an accident and various factors including - age, sex, their involvement in the accident (driver, passenger, etc.), whether they were injuried and the severity of their injuries, and if they were transported to a hospital.
+```{r}
+person.data.raw = read_delim(
+  "data_files/CRSS2022CSV/person.csv",
+  delim=",",
+  na=" ",
+  )
+
+person.data.raw
+```
+
+
+
+
+## Cleanse Person Data
+
+Select the variables we want and use code-book to reduce categories to simplify data analysis:
+- Unique identifies for joins: CASENUM and PER_NO
+- Age of person involved: AGE_IM renamed to AGE_OF_PERSON
+- Sex of person involved: SEX_IMNAME renamed to SEX_OF_PERSON
+- Whether the person was the Driver, Passenger, Other - Occupant, or Other - Non-Occupant - PER_TYP/PER_TYPNAME renamed to PERSON_INVOLVED_TYPE.
+- The injury severity - INJSEV_IMNAME renamed to INJURY_SEVERITY - and reduced to: No Known Injury, Injury - Severity Minor or Unknown, Serious Injury, Fatal Injury, or Other - Injury or Fatality not From Crash
+- Whether the person's airbag deployed: AIR_BAGNAME renamed to AIRBAG_DEPLOYMENT
+- Whether the person was transported to the hospital - HOSPITALNAME renamed to HOSPITAL_TRANSPORT_STATUS
+- Whether a rollover occured in the accident - ROLLOVERNAME renamed to ROLLOVER_OCCURENCE
+- Whether a fire was related to the accident - FIRE_EXPNAME renamed to FIRE_RELATED_CRASH
+
+```{r}
+person.data = person.data.raw %>%
+  select(CASENUM, PER_NO, AGE_IM, SEX_IMNAME, PER_TYP, PER_TYPNAME, INJSEV_IM, INJSEV_IMNAME, 
+         AIR_BAG, AIR_BAGNAME, EJECT_IM, EJECT_IMNAME, HOSPITAL, HOSPITALNAME, ROLLOVER, ROLLOVERNAME, FIRE_EXP, FIRE_EXPNAME) %>%
+    mutate(PER_TYPNAME=ifelse(person.data.raw$PER_TYP == 1, "Driver", 
+                              ifelse(person.data.raw$PER_TYP == 2, "Passenger",
+                                     ifelse(person.data.raw$PER_TYP == 9 | person.data.raw$PER_TYP %in% c(3,4), "Other - Occupant",
+                                     "Other - Non-occupant")))) %>%
+    mutate(INJSEV_IMNAME=ifelse(person.data.raw$INJSEV_IM == 0 | person.data.raw$INJSEV_IM == 9, "No Known Injury", 
+                              ifelse(person.data.raw$INJSEV_IM == 5 | person.data.raw$INJSEV_IM %in% c(1,2), "Injury - Severity Minor or Unknown",
+                                     ifelse(person.data.raw$INJSEV_IM == 3, "Serious Injury",
+                                            ifelse(person.data.raw$INJSEV_IM == 4, "Fatal Injury", "Other - Injury or Fatality not From Crash"))))) %>%
+    mutate(AIR_BAGNAME=ifelse(person.data.raw$AIR_BAG %in% c(1,9),
+                              "Deployed", 
+                              ifelse(person.data.raw$AIR_BAG == 20 | person.data.raw$AIR_BAG == 28,
+                                     "Not Deployed", "Deployment Unknown"))) %>%
+    mutate(EJECT_IMNAME=ifelse(person.data.raw$EJECT_IM %in% c(1,3),
+                              "Ejected", 
+                              ifelse(person.data.raw$EJECT_IM == 0,
+                                     "Not Ejected", "Ejection Unknown"))) %>%
+    mutate(HOSPITALNAME=ifelse(person.data.raw$HOSPITAL == 0,
+                                     "No Hospital Transport",
+                                 ifelse(person.data.raw$HOSPITAL %in% c(6,9),
+                                     "Hospital Transport Status Unknown", "Transported to Hospital"))) %>%
+    mutate(ROLLOVERNAME=ifelse(person.data.raw$ROLLOVER %in% c(1,3) | person.data.raw$ROLLOVER == 9,
+                                     "Rollover Occured", ROLLOVERNAME)) %>%
+    rename("AGE_OF_PERSON" = AGE_IM) %>%
+    rename("PERSON_INVOLVED_TYPE" = PER_TYPNAME) %>%
+    rename("SEX_OF_PERSON" = SEX_IMNAME) %>%
+    rename("INJURY_SEVERITY" = INJSEV_IMNAME) %>%
+    rename("AIRBAG_DEPLOYMENT" = AIR_BAGNAME) %>%
+    rename("PERSON_EJECTED" = EJECT_IMNAME) %>%
+    rename("HOSPITAL_TRANSPORT_STATUS" = HOSPITALNAME) %>%
+    rename("ROLLOVER_OCCURENCE" = ROLLOVERNAME) %>%
+    rename("FIRE_RELATED_CRASH" = FIRE_EXPNAME)
+
+person.data
+```
+
 
 
 ## Let's look at some distributions
@@ -65,4 +133,19 @@ ggplot(accident.data, aes(y=MAX_SEVNAME)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5))
 ```
 
+```{r}
+ggplot(accident.data) +
+  aes(x=WEATHR_IMNAME, y=NO_INJ_IM, fill=MAXSEV_IMNAME) +
+  geom_col() +
+  scale_fill_brewer(palette="Set1") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5)) 
+```
+
+
+```{r}
+ggplot(accident.data) +
+  aes(x=ALCHL_IMNAME) +
+  geom_bar() 
+```
 
