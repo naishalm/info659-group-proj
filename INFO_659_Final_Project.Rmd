@@ -23,6 +23,9 @@ Prior to completing an exploratory data analysis (EDA) to compile the data distr
 Load R packages:
 ```{r}
 library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(readr)
 ```
 
 ## Load the Data
