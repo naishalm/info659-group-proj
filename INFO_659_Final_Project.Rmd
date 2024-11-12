@@ -46,6 +46,87 @@ accident.data = accident.data.raw %>%
 accident.data
 ```
 
+Introducing the variables: 
+
+1. CASENUM: Case number
+
+2. REGIONNAME : Geographic region's name
+
+3. URBANICITYNAME : Describes the level of urbanicity (urban or rural areas)
+
+4. HOUR_IM: represent the hour of the incident
+
+5. RELJCT2_IMNAME : Describes the relation to the junction for the second incident or vehicle (e.g., “At Intersection”)
+
+6. LGTCON_IMNAME: Describes light conditions
+
+7. WEATHR_IMNAME: Describes weather conditions 
+
+8. MAXSEV_IM: Code indicating the maximum severity level of the incident
+
+9. MAXSEV_IMNAME: Descriptive name for MAXSEV_IM
+
+10. NO_INJ_IM : Represents the number of injuries 
+
+11. ALCHL_IMNAME: Describes alcohol involvement 
+
+12. MONTHNAME: Month of the incident 
+
+
+Cleaning the data: 
+
+```{r}
+# Replace missing values in categorical columns with "Unknown"
+accident_data = accident.data.raw %>%
+  mutate_if(is.character, ~replace(., is.na(.), "Unknown"))
+
+# Replace missing values in numeric columns with the median
+accident_data = accident_data %>%
+  mutate_if(is.numeric, ~replace(., is.na(.), median(., na.rm = TRUE)))
+
+```
+
+```{r}
+cleaned_data = accident_data %>%
+  select(CASENUM, REGIONNAME, URBANICITYNAME, MONTHNAME, HOUR_IM, RELJCT2_IMNAME, LGTCON_IMNAME, WEATHR_IMNAME, MAXSEV_IM, MAXSEV_IMNAME, NO_INJ_IM, ALCHL_IMNAME)
+```
+
+```{r}
+# Rename columns for clarity
+renamed_accident_data = cleaned_data %>%
+  rename(
+    case_number = CASENUM,
+    region_name = REGIONNAME, 
+    urbancity_name = URBANICITYNAME, 
+    month_name = MONTHNAME,
+    hour = HOUR_IM, 
+    junction_name = RELJCT2_IMNAME, 
+    light_condition = LGTCON_IMNAME, 
+    weather_name = WEATHR_IMNAME, 
+    max_severity_level = MAXSEV_IM, 
+    max_severity_des = MAXSEV_IMNAME, 
+    injur_no = NO_INJ_IM,
+    alcohol_involved = ALCHL_IMNAME
+  )
+renamed_accident_data
+```
+
+#we can check for in which month the accidents are high
+#where accidents are high or in what region the accidents are high - is it in urban or rural areas
+#the weather condtion 
+#how severity the injury level 
+#the time at which the accident occur: check for the most common time 
+#the number of injuries
+#is there any alcohol involvement 
+
+
+Removing any duplicates 
+```{r}
+renamed_accident_data =  renamed_accident_data %>% distinct()
+renamed_accident_data
+```
+
+
 ## Load Person Data
 
 The person data file includes list of individuals involved in an accident and various factors including - age, sex, their involvement in the accident (driver, passenger, etc.), whether they were injuried and the severity of their injuries, and if they were transported to a hospital.
