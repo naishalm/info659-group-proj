@@ -121,6 +121,7 @@ Removing any duplicates
 renamed_accident_data =  renamed_accident_data %>% distinct()
 renamed_accident_data
 ```
+
 Truncating Region Names
 ```{r}
 accident.data = renamed_accident_data %>%
