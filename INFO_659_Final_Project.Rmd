@@ -30,11 +30,7 @@ library(readr)
 
 ## Load the Data
 ```{r}
-accident.data.raw = read_delim(
-  "data_files/CRSS2022CSV/accident.csv",
-  delim=",",
-  na=" ",
-  )
+accident.data.raw = read_csv("data_files/CRSS2022CSV/accident.csv")
 
 accident.data.raw
 ```
@@ -125,17 +121,20 @@ Removing any duplicates
 renamed_accident_data =  renamed_accident_data %>% distinct()
 renamed_accident_data
 ```
+Truncating Region Names
+```{r}
+accident.data = renamed_accident_data %>%
+  mutate(region_name = str_split(region_name, "\\(", simplify = T)[,1])
+
+accident.data
+```
 
 
 ## Load Person Data
 
 The person data file includes list of individuals involved in an accident and various factors including - age, sex, their involvement in the accident (driver, passenger, etc.), whether they were injuried and the severity of their injuries, and if they were transported to a hospital.
 ```{r}
-person.data.raw = read_delim(
-  "data_files/CRSS2022CSV/person.csv",
-  delim=",",
-  na=" ",
-  )
+person.data.raw = read_csv("data_files/CRSS2022CSV/person.csv")
 
 person.data.raw
 ```
@@ -178,7 +177,7 @@ person.data = person.data.raw %>%
                                      "Not Ejected", "Ejection Unknown"))) %>%
     mutate(HOSPITALNAME=ifelse(person.data.raw$HOSPITAL == 0,
                                      "No Hospital Transport",
-                                 ifelse(person.data.raw$HOSPITAL %in% c(6,9),
+                                 ifelse(person.data.raw$HOSPITAL %in% c(8,9),
                                      "Hospital Transport Status Unknown", "Transported to Hospital"))) %>%
     mutate(ROLLOVERNAME=ifelse(person.data.raw$ROLLOVER %in% c(1,3) | person.data.raw$ROLLOVER == 9,
                                      "Rollover Occured", ROLLOVERNAME)) %>%
@@ -198,28 +197,33 @@ person.data
 
 
 ## Let's look at some distributions
+
 ```{r}
-summary(accident.data$NUM_INJ)
+accident.data
+```
+
+```{r}
+summary(accident.data$injur_no)
 ```
 
 ```{r}
 ggplot(accident.data) +
-  aes(x=NUM_INJ, na.rm = TRUE) +
+  aes(x=injur_no, na.rm = TRUE) +
   geom_histogram(binwidth=1,col="blue", fill="lightblue")+
-  geom_vline(xintercept = mean(accident.data$NUM_INJ, na.rm=TRUE),
+  geom_vline(xintercept = mean(accident.data$injur_no, na.rm=TRUE),
              color='black') +
-  geom_vline(xintercept = median(accident.data$NUM_INJ, na.rm=TRUE),
+  geom_vline(xintercept = median(accident.data$injur_no, na.rm=TRUE),
              color='red')
 ```
 ```{r}
-ggplot(accident.data, aes(y=MAX_SEVNAME)) + 
+ggplot(accident.data, aes(y=max_severity_des)) + 
   geom_bar(stat="count", na.rm = TRUE)+ 
   theme(axis.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5))
 ```
 
 ```{r}
 ggplot(accident.data) +
-  aes(x=WEATHR_IMNAME, y=NO_INJ_IM, fill=MAXSEV_IMNAME) +
+  aes(x=weather_name, y=injur_no, fill=max_severity_des) +
   geom_col() +
   scale_fill_brewer(palette="Set1") +
   theme_minimal() +
@@ -229,7 +233,64 @@ ggplot(accident.data) +
 
 ```{r}
 ggplot(accident.data) +
-  aes(x=ALCHL_IMNAME) +
+  aes(x=alcohol_involved) +
   geom_bar() 
 ```
+
+
+## Join the Data through CaseNum
+
+```{r}
+accident.join = person.data %>%
+  left_join(., accident.data, by=join_by(CASENUM==case_number)) %>%
+  filter(HOSPITAL_TRANSPORT_STATUS != "Hospital Transport Status Unknown")
+
+accident.join
+```
+
+## Create Outcome column and select inputs for outcome related to hospital transport
+
+```{r}
+accident.join = accident.join %>%
+  mutate(Outcome = as.factor(if_else(HOSPITAL_TRANSPORT_STATUS == "Transported to Hospital",
+                                     "Transported to Hospital", "No Hospital Transport"))) %>%
+  mutate(SEX_OF_PERSON = as.factor(SEX_OF_PERSON)) %>%
+  mutate(PERSON_INVOLVED_TYPE = as.factor(PERSON_INVOLVED_TYPE)) %>%
+  mutate(AIRBAG_DEPLOYMENT = as.factor(AIRBAG_DEPLOYMENT)) %>%
+  mutate(PERSON_EJECTED = as.factor(PERSON_EJECTED)) %>%
+  mutate(ROLLOVER_OCCURENCE = as.factor(ROLLOVER_OCCURENCE)) %>%
+  mutate(FIRE_RELATED_CRASH = as.factor(FIRE_RELATED_CRASH)) %>%
+  mutate(region_name = as.factor(region_name)) %>%
+  mutate(urbancity_name = as.factor(urbancity_name)) %>%
+  mutate(month_name = as.factor(month_name)) %>%
+  mutate(light_condition = as.factor(light_condition)) %>%
+  mutate(weather_name = as.factor(weather_name))
+  
+accident.join = accident.join %>%
+  select(AGE_OF_PERSON, SEX_OF_PERSON, PERSON_INVOLVED_TYPE, AIRBAG_DEPLOYMENT,
+         PERSON_EJECTED, ROLLOVER_OCCURENCE, FIRE_RELATED_CRASH, region_name, 
+         urbancity_name, hour, month_name, light_condition, weather_name, Outcome)
+```
+
+
+
+## Split the data
+
+
+
+
+## Train the data
+
+
+
+
+## Tune the data
+
+
+
+
+
+## Test the data
+
+
 
