@@ -26,7 +26,14 @@ library(tidyverse)
 library(ggplot2)
 library(dplyr)
 library(readr)
+library(caret)
 ```
+
+## Set the seed
+```{r}
+set.seed(20241128)
+```
+
 
 ## Load the Data
 ```{r}
@@ -266,10 +273,12 @@ accident.join = accident.join %>%
   mutate(light_condition = as.factor(light_condition)) %>%
   mutate(weather_name = as.factor(weather_name))
   
-accident.join = accident.join %>%
+accident.join.filtered = accident.join %>%
   select(AGE_OF_PERSON, SEX_OF_PERSON, PERSON_INVOLVED_TYPE, AIRBAG_DEPLOYMENT,
          PERSON_EJECTED, ROLLOVER_OCCURENCE, FIRE_RELATED_CRASH, region_name, 
          urbancity_name, hour, month_name, light_condition, weather_name, Outcome)
+
+accident.join.filtered
 ```
 
 
@@ -278,7 +287,7 @@ accident.join = accident.join %>%
 
 
 ```{r}
-accident.split = initial_validation_split(accident.join, prop = c(0.6, 0.2))
+accident.split = initial_validation_split(accident.join.filtered, prop = c(0.6, 0.2))
 train.data = training(accident.split)
 valid.data = validation(accident.split)
 test.data = testing(accident.split)
@@ -286,28 +295,77 @@ test.data = testing(accident.split)
 train.data
 ```
 
+## Look at the training data
+
+The outcome variable is imbalanced as majority of crashes do not require hospital transport.
+```{r}
+ggplot(train.data) +
+  aes(x=Outcome) +
+  geom_bar() 
+```
 
 
 ## Train the data
 
-### KMeans
+### KMeans - Megan
 
-### XGB
+One Hot Encode the data
+```{r}
+train.data.person = train.data %>%
+  select(AGE_OF_PERSON, SEX_OF_PERSON, PERSON_INVOLVED_TYPE, Outcome)
+train.encoded.person = model.matrix(~ . -1, data=train.data.person)
+
+train.data.crash.details = train.data %>%
+  select(AIRBAG_DEPLOYMENT, PERSON_EJECTED, ROLLOVER_OCCURENCE, FIRE_RELATED_CRASH, Outcome)
+train.encoded.crash.details = model.matrix(~ . -1, data=train.data.crash.details)
+
+train.data.crash.conditions = train.data %>%
+  select(region_name, urbancity_name, hour, light_condition, month_name, weather_name, Outcome)
+train.encoded.crash.conditions = model.matrix(~ . -1, data=train.data.crash.conditions)
+
+train.encoded.all = model.matrix(~ . -1, data=train.data)
+```
+
+Fit the data to the model - Person details
+```{r}
+kmeans.model = kmeans(train.encoded.person, centers=4, nstart=1)
+
+kmeans.model
+```
+
+Fit the data to the model - crash details
+```{r}
+kmeans.model = kmeans(train.encoded.crash.details, centers=4, nstart=1)
+
+kmeans.model
+```
+
+Fit the data to the model - crash conditions
+```{r}
+kmeans.model = kmeans(train.encoded.crash.conditions, centers=4, nstart=1)
+
+kmeans.model
+```
+
+### XGB - Rafi
 
 
 
 ## Tune the hyperparameters
 
 
+### KMeans tuning - Rafi/Jinsu
+
+### XGB - Naishal
+
+
+## Test the data - Naishal/Megan
 
 
 
-## Test the data
+
+## Evaluate the data - Naishal
 
 
-
-## Evaluate the data
-
-
-## Outcomes
+## Outcomes - Megan/Jinsu
 
