@@ -277,14 +277,26 @@ accident.join = accident.join %>%
 ## Split the data
 
 
+```{r}
+accident.split = initial_validation_split(accident.join, prop = c(0.6, 0.2))
+train.data = training(accident.split)
+valid.data = validation(accident.split)
+test.data = testing(accident.split)
+
+train.data
+```
+
 
 
 ## Train the data
 
+### KMeans
+
+### XGB
 
 
 
-## Tune the data
+## Tune the hyperparameters
 
 
 
@@ -293,4 +305,9 @@ accident.join = accident.join %>%
 ## Test the data
 
 
+
+## Evaluate the data
+
+
+## Outcomes
 
