@@ -290,24 +290,27 @@ train.data
 
 ## Train the data
 
-### KMeans
+### KMeans - Megan
 
-### XGB
+### XGB - Rafi
 
 
 
 ## Tune the hyperparameters
 
 
+### KMeans tuning - Rafi/Jinsu
+
+### XGB - Naishal
+
+
+## Test the data - Naishal/Megan
 
 
 
-## Test the data
+
+## Evaluate the data - Naishal
 
 
-
-## Evaluate the data
-
-
-## Outcomes
+## Outcomes - Megan/Jinsu
 
