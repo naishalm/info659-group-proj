@@ -358,14 +358,10 @@ kmeans.model
 
 ### XGB - Naishal
 
-
 ## Test the data - Naishal/Megan
 
 
-
-
 ## Evaluate the data - Naishal
-
 
 ## Outcomes - Megan/Jinsu
 
