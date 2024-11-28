@@ -358,6 +358,124 @@ kmeans.model
 
 ### XGB - Naishal
 
+# XGBoost Model for Hospital Transport Prediction
+
+
+library(xgboost)
+library(caret)
+library(dplyr)
+
+# Prepare the data for XGBoost
+prepare_xgb_data <- function(data) {
+  # One-hot encode categorical variables
+  data_encoded <- data %>%
+    mutate(
+      SEX_OF_PERSON = as.numeric(factor(SEX_OF_PERSON)),
+      PERSON_INVOLVED_TYPE = as.numeric(factor(PERSON_INVOLVED_TYPE)),
+      AIRBAG_DEPLOYMENT = as.numeric(factor(AIRBAG_DEPLOYMENT)),
+      PERSON_EJECTED = as.numeric(factor(PERSON_EJECTED)),
+      ROLLOVER_OCCURENCE = as.numeric(factor(ROLLOVER_OCCURENCE)),
+      FIRE_RELATED_CRASH = as.numeric(factor(FIRE_RELATED_CRASH)),
+      region_name = as.numeric(factor(region_name)),
+      urbancity_name = as.numeric(factor(urbancity_name)),
+      month_name = as.numeric(factor(month_name)),
+      light_condition = as.numeric(factor(light_condition)),
+      weather_name = as.numeric(factor(weather_name))
+    )
+  
+  # Prepare features and target
+  X <- data_encoded %>% 
+    select(-Outcome) %>% 
+    as.matrix()
+  
+  y <- ifelse(data_encoded$Outcome == "Transported to Hospital", 1, 0)
+  
+  return(list(X = X, y = y))
+}
+
+# Train XGBoost Model
+train_xgb_model <- function(train.data, valid.data) {
+  # Prepare training data
+  train_xgb <- prepare_xgb_data(train.data)
+  valid_xgb <- prepare_xgb_data(valid.data)
+  
+  # Set up XGBoost parameters
+  params <- list(
+    objective = "binary:logistic",
+    eval_metric = "auc",
+    max_depth = 6,
+    eta = 0.3,
+    subsample = 0.8,
+    colsample_bytree = 0.8
+  )
+  
+  # Train the model
+  xgb_model <- xgboost(
+    data = train_xgb$X,
+    label = train_xgb$y,
+    params = params,
+    nrounds = 100,
+    verbose = 1
+  )
+  
+  # Validate the model
+  valid_pred <- predict(xgb_model, valid_xgb$X)
+  valid_pred_binary <- ifelse(valid_pred > 0.5, 1, 0)
+  
+  # Calculate validation metrics
+  valid_metrics <- list(
+    confusion_matrix = table(Predicted = valid_pred_binary, Actual = valid_xgb$y),
+    accuracy = mean(valid_pred_binary == valid_xgb$y),
+    auc = mlr::performance(mlr::pred(task = mlr::makeClassifTask(data = data.frame(pred = valid_pred_binary, truth = valid_xgb$y), target = "truth"), model = xgb_model), mlr::auc)
+  )
+  
+  return(list(model = xgb_model, validation_metrics = valid_metrics))
+}
+
+# Predict on test data
+predict_xgb <- function(xgb_model, test.data) {
+  # Prepare test data
+  test_xgb <- prepare_xgb_data(test.data)
+  
+  # Make predictions
+  test_pred <- predict(xgb_model, test_xgb$X)
+  test_pred_binary <- ifelse(test_pred > 0.5, 1, 0)
+  
+  # Calculate test metrics
+  test_metrics <- list(
+    confusion_matrix = table(Predicted = test_pred_binary, Actual = test_xgb$y),
+    accuracy = mean(test_pred_binary == test_xgb$y),
+    auc = mlr::performance(mlr::pred(task = mlr::makeClassifTask(data = data.frame(pred = test_pred_binary, truth = test_xgb$y), target = "truth"), model = xgb_model), mlr::auc)
+  )
+  
+  return(list(predictions = test_pred_binary, metrics = test_metrics))
+}
+
+# Feature Importance
+get_feature_importance <- function(xgb_model) {
+  importance_matrix <- xgb.importance(model = xgb_model)
+  return(importance_matrix)
+}
+
+# Main execution
+xgb_results <- train_xgb_model(train.data, valid.data)
+
+# Test the model
+test_results <- predict_xgb(xgb_results$model, test.data)
+
+# Get feature importance
+feature_importance <- get_feature_importance(xgb_results$model)
+
+# Print results
+print("Validation Metrics:")
+print(xgb_results$validation_metrics)
+
+print("Test Metrics:")
+print(test_results$metrics)
+
+print("Top Feature Importance:")
+print(head(feature_importance, 10))
+
 ## Test the data - Naishal/Megan
 
 
