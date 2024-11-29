@@ -326,25 +326,25 @@ train.encoded.crash.conditions = model.matrix(~ . -1, data=train.data.crash.cond
 train.encoded.all = model.matrix(~ . -1, data=train.data)
 ```
 
-Fit the data to the model - Person details
+### Fit the data to the model - Person details
 ```{r}
-kmeans.model = kmeans(train.encoded.person, centers=4, nstart=1)
+kmeans.model.persons.details = kmeans(train.encoded.person, centers=4, nstart=1)
 
-kmeans.model
+kmeans.model.persons.details
 ```
 
-Fit the data to the model - crash details
+### Fit the data to the model - crash details
 ```{r}
-kmeans.model = kmeans(train.encoded.crash.details, centers=4, nstart=1)
+kmeans.model.crash.details = kmeans(train.encoded.crash.details, centers=4, nstart=1)
 
-kmeans.model
+kmeans.model.crash.details
 ```
 
-Fit the data to the model - crash conditions
+### Fit the data to the model - crash conditions
 ```{r}
-kmeans.model = kmeans(train.encoded.crash.conditions, centers=4, nstart=1)
+kmeans.model.conditions = kmeans(train.encoded.crash.conditions, centers=4, nstart=1)
 
-kmeans.model
+kmeans.model.conditions
 ```
 
 ### XGB - Rafi
@@ -358,10 +358,14 @@ kmeans.model
 
 ### XGB - Naishal
 
+
 ## Test the data - Naishal/Megan
 
 
+
+
 ## Evaluate the data - Naishal
+
 
 ## Outcomes - Megan/Jinsu
 
