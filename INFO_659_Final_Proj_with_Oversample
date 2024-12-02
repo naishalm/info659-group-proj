@@ -312,7 +312,7 @@ accident.join.filtered
 
 
 ```{r}
-accident.split = initial_validation_split(accident.join.filtered, prop = c(0.6, 0.2))
+accident.split = initial_validation_split(accident.join.filtered, prop = c(0.7, 0.15))
 train.data = training(accident.split)
 valid.data = validation(accident.split)
 test.data = testing(accident.split)
@@ -333,10 +333,10 @@ ggplot(train.data) +
 prop.table(table(train.data$Outcome))
 ```
 
-## Oversample Transported to Hospital to reduce class imbalances
+## Oversample Transported to Hospital to reduce class and Undersample Not Transported to address class imbalances in training data
 
 ```{r}
-train.balanced = ovun.sample(Outcome ~ ., data=train.data, method="over")$data
+train.balanced = ovun.sample(Outcome ~ ., data=train.data, method="both")$data
 
 prop.table(table(train.balanced$Outcome))
 ```
