@@ -27,6 +27,10 @@ library(ggplot2)
 library(dplyr)
 library(readr)
 library(caret)
+library(xgboost)
+library(tidymodels)
+library(discrim)
+library(ranger)
 ```
 
 ## Set the seed
@@ -34,7 +38,13 @@ library(caret)
 set.seed(20241128)
 ```
 
+## Specifying Metrics
 
+Setting the metrics we want to calculate: accuracy, precision, sensitivity, specificity, and Cohen's Kappa.
+
+```{r}
+sba_metrics = metric_set(accuracy, precision, sensitivity, specificity, kap)
+```
 ## Load the Data
 ```{r}
 accident.data.raw = read_csv("data_files/CRSS2022CSV/accident.csv")
@@ -86,6 +96,7 @@ accident_data = accident.data.raw %>%
 # Replace missing values in numeric columns with the median
 accident_data = accident_data %>%
   mutate_if(is.numeric, ~replace(., is.na(.), median(., na.rm = TRUE)))
+
 
 ```
 
@@ -151,6 +162,19 @@ person.data.raw
 
 ## Cleanse Person Data
 
+```{r}
+# Replace missing values in categorical columns with "Unknown"
+person.data.na.filter = person.data.raw %>%
+  mutate_if(is.character, ~replace(., is.na(.), "Unknown"))
+
+# Replace missing values in numeric columns with the median
+person.data.na.filter = person.data.na.filter %>%
+  mutate_if(is.numeric, ~replace(., is.na(.), median(., na.rm = TRUE)))
+
+person.data.na.filter
+```
+
+
 Select the variables we want and use code-book to reduce categories to simplify data analysis:
 - Unique identifies for joins: CASENUM and PER_NO
 - Age of person involved: AGE_IM renamed to AGE_OF_PERSON
@@ -163,30 +187,30 @@ Select the variables we want and use code-book to reduce categories to simplify 
 - Whether a fire was related to the accident - FIRE_EXPNAME renamed to FIRE_RELATED_CRASH
 
 ```{r}
-person.data = person.data.raw %>%
+person.data = person.data.na.filter %>%
   select(CASENUM, PER_NO, AGE_IM, SEX_IMNAME, PER_TYP, PER_TYPNAME, INJSEV_IM, INJSEV_IMNAME, 
          AIR_BAG, AIR_BAGNAME, EJECT_IM, EJECT_IMNAME, HOSPITAL, HOSPITALNAME, ROLLOVER, ROLLOVERNAME, FIRE_EXP, FIRE_EXPNAME) %>%
-    mutate(PER_TYPNAME=ifelse(person.data.raw$PER_TYP == 1, "Driver", 
-                              ifelse(person.data.raw$PER_TYP == 2, "Passenger",
-                                     ifelse(person.data.raw$PER_TYP == 9 | person.data.raw$PER_TYP %in% c(3,4), "Other - Occupant",
+    mutate(PER_TYPNAME=ifelse(person.data.na.filter$PER_TYP == 1, "Driver", 
+                              ifelse(person.data.na.filter$PER_TYP == 2, "Passenger",
+                                     ifelse(person.data.na.filter$PER_TYP == 9 | person.data.na.filter$PER_TYP %in% c(3,4), "Other - Occupant",
                                      "Other - Non-occupant")))) %>%
-    mutate(INJSEV_IMNAME=ifelse(person.data.raw$INJSEV_IM == 0 | person.data.raw$INJSEV_IM == 9, "No Known Injury", 
-                              ifelse(person.data.raw$INJSEV_IM == 5 | person.data.raw$INJSEV_IM %in% c(1,2), "Injury - Severity Minor or Unknown",
-                                     ifelse(person.data.raw$INJSEV_IM == 3, "Serious Injury",
-                                            ifelse(person.data.raw$INJSEV_IM == 4, "Fatal Injury", "Other - Injury or Fatality not From Crash"))))) %>%
-    mutate(AIR_BAGNAME=ifelse(person.data.raw$AIR_BAG %in% c(1,9),
+    mutate(INJSEV_IMNAME=ifelse(person.data.na.filter$INJSEV_IM == 0 | person.data.na.filter$INJSEV_IM == 9, "No Known Injury", 
+                              ifelse(person.data.na.filter$INJSEV_IM == 5 | person.data.na.filter$INJSEV_IM %in% c(1,2), "Injury - Severity Minor or Unknown",
+                                     ifelse(person.data.na.filter$INJSEV_IM == 3, "Serious Injury",
+                                            ifelse(person.data.na.filter$INJSEV_IM == 4, "Fatal Injury", "Other - Injury or Fatality not From Crash"))))) %>%
+    mutate(AIR_BAGNAME=ifelse(person.data.na.filter$AIR_BAG %in% c(1,9),
                               "Deployed", 
-                              ifelse(person.data.raw$AIR_BAG == 20 | person.data.raw$AIR_BAG == 28,
+                              ifelse(person.data.na.filter$AIR_BAG == 20 | person.data.na.filter$AIR_BAG == 28,
                                      "Not Deployed", "Deployment Unknown"))) %>%
-    mutate(EJECT_IMNAME=ifelse(person.data.raw$EJECT_IM %in% c(1,3),
+    mutate(EJECT_IMNAME=ifelse(person.data.na.filter$EJECT_IM %in% c(1,3),
                               "Ejected", 
-                              ifelse(person.data.raw$EJECT_IM == 0,
+                              ifelse(person.data.na.filter$EJECT_IM == 0,
                                      "Not Ejected", "Ejection Unknown"))) %>%
-    mutate(HOSPITALNAME=ifelse(person.data.raw$HOSPITAL == 0,
+    mutate(HOSPITALNAME=ifelse(person.data.na.filter$HOSPITAL == 0,
                                      "No Hospital Transport",
-                                 ifelse(person.data.raw$HOSPITAL %in% c(8,9),
+                                 ifelse(person.data.na.filter$HOSPITAL %in% c(8,9),
                                      "Hospital Transport Status Unknown", "Transported to Hospital"))) %>%
-    mutate(ROLLOVERNAME=ifelse(person.data.raw$ROLLOVER %in% c(1,3) | person.data.raw$ROLLOVER == 9,
+    mutate(ROLLOVERNAME=ifelse(person.data.na.filter$ROLLOVER %in% c(1,3) | person.data.na.filter$ROLLOVER == 9,
                                      "Rollover Occured", ROLLOVERNAME)) %>%
     rename("AGE_OF_PERSON" = AGE_IM) %>%
     rename("PERSON_INVOLVED_TYPE" = PER_TYPNAME) %>%
@@ -307,57 +331,174 @@ ggplot(train.data) +
 
 ## Train the data
 
-### KMeans - Megan
 
-One Hot Encode the data
+### Random Forest (RF)
+
+#### RF: Fit the model to the train data
 ```{r}
-train.data.person = train.data %>%
-  select(AGE_OF_PERSON, SEX_OF_PERSON, PERSON_INVOLVED_TYPE, Outcome)
-train.encoded.person = model.matrix(~ . -1, data=train.data.person)
-
-train.data.crash.details = train.data %>%
-  select(AIRBAG_DEPLOYMENT, PERSON_EJECTED, ROLLOVER_OCCURENCE, FIRE_RELATED_CRASH, Outcome)
-train.encoded.crash.details = model.matrix(~ . -1, data=train.data.crash.details)
-
-train.data.crash.conditions = train.data %>%
-  select(region_name, urbancity_name, hour, light_condition, month_name, weather_name, Outcome)
-train.encoded.crash.conditions = model.matrix(~ . -1, data=train.data.crash.conditions)
-
-train.encoded.all = model.matrix(~ . -1, data=train.data)
+rf.model = rand_forest(mode="classification") %>%
+  fit(Outcome ~ ., data=train.data)
 ```
 
-### Fit the data to the model - Person details
-```{r}
-kmeans.model.persons.details = kmeans(train.encoded.person, centers=4, nstart=1)
+#### RF: Evaluation with the validation data:
 
-kmeans.model.persons.details
+```{r}
+rf.valid.data = na.omit(valid.data) %>%
+  bind_cols(predict(rf.model, na.omit(valid.data))) %>%
+  glimpse()
 ```
 
-### Fit the data to the model - crash details
-```{r}
-kmeans.model.crash.details = kmeans(train.encoded.crash.details, centers=4, nstart=1)
+#### RF: Apply the metrics:
 
-kmeans.model.crash.details
+```{r}
+sba_metrics(rf.valid.data, truth=Outcome, estimate=.pred_class)
+```
+### XGB
+
+#### XGB: Fit the model to the training data
+```{r}
+xgb.model = boost_tree(mode="classification") %>%
+  fit(Outcome ~ ., data=train.data)
+```
+#### XGB: Evaluation with the validation data:
+
+```{r}
+xgb.valid.data = valid.data %>%
+  bind_cols(predict(xgb.model, valid.data)) %>%
+  glimpse()
 ```
 
-### Fit the data to the model - crash conditions
-```{r}
-kmeans.model.conditions = kmeans(train.encoded.crash.conditions, centers=4, nstart=1)
+#### XGB: Apply the metrics:
 
-kmeans.model.conditions
+```{r}
+sba_metrics(xgb.valid.data, truth=Outcome, estimate=.pred_class)
+```
+## Tune the hyperparameters for our selected model XGB
+
+### XGBoost Tuning - tune tree size, mtry, and tree depth
+#### XGB - Tune tree size
+```{r}
+tree_sizes = c(10, 50, 75, 100, 200, 300, 500)
+tree_metrics = map_df(tree_sizes, function(n) {
+  preds = boost_tree(mode="classification", trees=n) %>%
+    fit(Outcome ~ ., data=train.data) %>%
+    predict(valid.data)
+  results = valid.data %>%
+    select(Outcome) %>%
+    bind_cols(preds)
+  sba_metrics(results, truth = Outcome, estimate = .pred_class) %>%
+    mutate(trees=n)
+})
 ```
 
-### XGB - Rafi
+We can plot:
+
+```{r}
+ggplot(tree_metrics %>% filter(.metric == "kap")) +
+  aes(x=trees, y=.estimate) +
+  geom_line() +
+  xlab("Number of Trees") +
+  ylab("Cohen's kappa")
+```
+Let's automatically pick the best tree size.
+
+```{r}
+xgb.trees = tree_metrics %>% filter(.metric == "kap") %>%
+  slice_max(.estimate, n=1, with_ties=FALSE) %>%
+  pull(trees)
+xgb.trees
+```
+
+
+#### XGB: Tune number of variables in each tree (mtry)
+```{r}
+mtry_sizes = c(1,2,3,4,5,6,7,8,9,10,11,12,13)
+mtry_metrics = map_df(mtry_sizes, function(n) {
+  preds = boost_tree(mode="classification", trees=xgb.trees, mtry=n) %>%
+    fit(Outcome ~ ., data=train.data) %>%
+    predict(valid.data)
+  results = valid.data %>%
+    select(Outcome) %>%
+    bind_cols(preds)
+  sba_metrics(results, truth = Outcome, estimate = .pred_class) %>%
+    mutate(mtry=n)
+})
+
+```
+
+Plot the values against the Cohen's Kappa value:
+
+```{r}
+ggplot(mtry_metrics %>% filter(.metric == "kap")) +
+  aes(x=mtry, y=.estimate) +
+  geom_line() +
+  xlab("Number of Features (mtry)") +
+  ylab("Cohen's kappa")
+```
+
+Pick the optimum mtry value:
+
+```{r}
+xgb.mtry = mtry_metrics %>% filter(.metric == "kap") %>%
+  slice_max(.estimate, n=1) %>%
+  pull(mtry)
+xgb.mtry
+```
 
 
 
-## Tune the hyperparameters
+#### XGB: Tune the maximum tree depth
+Used ChatGPT to identify what tree depths to try. Advice was to first try sizes between 3-11. (ChatGPT-2, 2024) This seemed sufficient for our activity.
+```{r}
+tree.depth.sizes = c(3,4,5,6,7,8,9,10,11)
+tree.depth.metrics = map_df(tree.depth.sizes, function(n) {
+  preds = boost_tree(mode="classification", trees=xgb.trees, mtry=xgb.mtry, tree_depth=n) %>%
+    fit(Outcome ~ ., data=train.data) %>%
+    predict(valid.data)
+  results = valid.data %>%
+    select(Outcome) %>%
+    bind_cols(preds)
+  sba_metrics(results, truth = Outcome, estimate = .pred_class) %>%
+    mutate(tree_depth=n)
+})
+```
+
+Plot the tree depths against the Cohen's Kappa:
+```{r}
+ggplot(tree.depth.metrics %>% filter(.metric == "kap")) +
+  aes(x=tree_depth, y=.estimate) +
+  geom_line() +
+  xlab("Tree Depth") +
+  ylab("Cohen's kappa")
+```
 
 
-### KMeans tuning - Rafi/Jinsu
 
-### XGB - Naishal
+Select the best maximum tree depth value:
+```{r}
+xgb.tree.depth = tree.depth.metrics %>% filter(.metric == "kap") %>%
+  slice_max(.estimate, n=1) %>%
+  pull(tree_depth)
+xgb.tree.depth
+```
 
+
+#### XGB: Re-fit the train data with optimum values
+```{r}
+xgb.model = boost_tree(mode="classification", trees=xgb.trees, mtry=xgb.mtry, tree_depth = xgb.tree.depth) %>%
+  fit(Outcome ~ ., data=train.data)
+```
+
+#### XGB: Re-evaluate against the validation data
+```{r}
+xgb.valid.data = valid.data %>%
+  bind_cols(predict(xgb.model, valid.data))
+```
+
+#### XGB: Apply the metrics
+```{r}
+sba_metrics(xgb.valid.data, truth=Outcome, estimate=.pred_class)
+```
 
 ## Test the data - Naishal/Megan
 
