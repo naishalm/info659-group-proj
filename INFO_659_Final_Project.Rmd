@@ -505,6 +505,34 @@ sba_metrics(xgb.valid.data, truth=Outcome, estimate=.pred_class)
 
 ## Test the data
 
+# Prepare the test data for evaluation
+test_xgb_data <- prepare_xgb_data(test.data)
+
+# Predict on test data
+test_pred <- predict(xgb_results$model, test_xgb_data$X)
+test_pred_binary <- ifelse(test_pred > 0.5, 1, 0)
+
+# Calculate test metrics
+test_metrics <- list(
+  confusion_matrix = table(Predicted = test_pred_binary, Actual = test_xgb_data$y),
+  accuracy = mean(test_pred_binary == test_xgb_data$y),
+  auc = MLmetrics::AUC(y_pred = test_pred, y_true = test_xgb_data$y)
+)
+
+# Print the test metrics
+print("Confusion Matrix:")
+print(test_metrics$confusion_matrix)
+
+print(paste("Accuracy:", round(test_metrics$accuracy, 3)))
+print(paste("AUC:", round(test_metrics$auc, 3)))
+
+# Plot the feature importance
+feature_importance <- xgb.importance(model = xgb_results$model)
+
+# Visualize feature importance
+xgb.plot.importance(importance_matrix = feature_importance)
+
+
 #### XGB: Re-evaluate against the validation data
 ```{r}
 xgb.test.data = test.data %>%
