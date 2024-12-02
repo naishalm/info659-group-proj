@@ -389,7 +389,93 @@ xgb.valid.data = valid.data %>%
 ```{r}
 sba_metrics(xgb.valid.data, truth=Outcome, estimate=.pred_class)
 ```
+### Tune Random Forest - Tree Size and MTRY (number of variables in each tree)
 
+#### RF: Tune tree size:
+```{r}
+tree_sizes = c(10, 50, 75, 100, 200, 300, 500, 700, 900, 1000, 1200)
+tree_metrics = map_df(tree_sizes, function(n) {
+  preds = rand_forest(mode="classification", trees=n) %>%
+    fit(Outcome ~ ., data=train.balanced) %>%
+    predict(valid.data)
+  results = valid.data %>%
+    select(Outcome) %>%
+    bind_cols(preds)
+  sba_metrics(results, truth = Outcome, estimate = .pred_class) %>%
+    mutate(trees=n)
+})
+```
+
+We can plot:
+
+```{r}
+ggplot(tree_metrics %>% filter(.metric == "kap")) +
+  aes(x=trees, y=.estimate) +
+  geom_line() +
+  xlab("Number of Trees") +
+  ylab("Cohen's kappa")
+```
+
+Pick the number of trees with the highest Cohen's Kappa value.
+```{r}
+rf.trees = tree_metrics %>% filter(.metric == "kap") %>%
+  slice_max(.estimate, n=1) %>%
+  pull(trees)
+rf.trees
+```
+#### RF: Tune number of variables in each tree (mtry):
+I used ChatGPT to identify how to test for mtry values - maximum is the number of features (ChatGPT-2, 2024)
+
+```{r}
+mtry_sizes = c(1,2,3,4,5,6,7,8)
+mtry_metrics = map_df(mtry_sizes, function(n) {
+  preds = rand_forest(mode="classification", trees=rf.trees, mtry=n) %>%
+    fit(Outcome ~ ., data=train.balanced) %>%
+    predict(valid.data)
+  results = valid.data %>%
+    select(Outcome) %>%
+    bind_cols(preds)
+  sba_metrics(results, truth = Outcome, estimate = .pred_class) %>%
+    mutate(mtry=n)
+})
+```
+
+
+Plot the different sizes against Cohen's Kappa:
+```{r}
+ggplot(mtry_metrics %>% filter(.metric == "kap")) +
+  aes(x=mtry, y=.estimate) +
+  geom_line() +
+  xlab("Number of Features (mtry)") +
+  ylab("Cohen's kappa")
+```
+
+Select the mtry value that produces the highest Cohen's Kappa:
+```{r}
+rf.mtry = mtry_metrics %>% filter(.metric == "kap") %>%
+  slice_max(.estimate, n=1) %>%
+  pull(mtry)
+rf.mtry
+```
+
+
+#### RF: Re-fit the training data with the optimized hyperparameters:
+```{r}
+rf.model = rand_forest(mode="classification", trees = rf.trees, mtry=rf.mtry) %>%
+  fit(Outcome ~ ., data=train.balanced)
+```
+
+#### RF: Re-evaluate with validation data:
+```{r}
+rf.valid.data = na.omit(valid.data) %>%
+  bind_cols(predict(rf.model, na.omit(valid.data)))
+```
+
+#### RF: Re-apply the metrics:
+
+```{r}
+sba_metrics(rf.valid.data, truth=Outcome, estimate=.pred_class)
+```
 
 
 ## Tune the hyperparameters for our selected model XGB
@@ -400,7 +486,7 @@ sba_metrics(xgb.valid.data, truth=Outcome, estimate=.pred_class)
 tree_sizes = c(10, 50, 75, 100, 200, 300, 500)
 tree_metrics = map_df(tree_sizes, function(n) {
   preds = boost_tree(mode="classification", trees=n) %>%
-    fit(Outcome ~ ., data=train.data) %>%
+    fit(Outcome ~ ., data=train.balanced) %>%
     predict(valid.data)
   results = valid.data %>%
     select(Outcome) %>%
@@ -434,7 +520,7 @@ xgb.trees
 mtry_sizes = c(1,2,3,4,5,6,7,8,9,10,11,12,13)
 mtry_metrics = map_df(mtry_sizes, function(n) {
   preds = boost_tree(mode="classification", trees=xgb.trees, mtry=n) %>%
-    fit(Outcome ~ ., data=train.data) %>%
+    fit(Outcome ~ ., data=train.balanced) %>%
     predict(valid.data)
   results = valid.data %>%
     select(Outcome) %>%
@@ -472,7 +558,7 @@ Used ChatGPT to identify what tree depths to try. Advice was to first try sizes 
 tree.depth.sizes = c(3,4,5,6,7,8,9,10,11)
 tree.depth.metrics = map_df(tree.depth.sizes, function(n) {
   preds = boost_tree(mode="classification", trees=xgb.trees, mtry=xgb.mtry, tree_depth=n) %>%
-    fit(Outcome ~ ., data=train.data) %>%
+    fit(Outcome ~ ., data=train.balanced) %>%
     predict(valid.data)
   results = valid.data %>%
     select(Outcome) %>%
@@ -519,6 +605,57 @@ xgb.valid.data = valid.data %>%
 sba_metrics(xgb.valid.data, truth=Outcome, estimate=.pred_class)
 ```
 
+
+
+
+
+
+## Evaluate Model/Create Charts
+
+```{r}
+all.test.preds = bind_rows(
+  RF = rand_forest(mode="classification") %>%
+    fit(Outcome ~ ., train.balanced) %>%
+    predict(test.data) %>% bind_cols(test.data),
+  XGB = boost_tree(mode="classification") %>%
+    fit(Outcome ~ ., train.balanced) %>%
+    predict(test.data) %>% bind_cols(test.data),
+  RF_OPT = rand_forest(mode="classification", trees=rf.trees, mtry=rf.mtry) %>%
+    fit(Outcome ~ ., train.balanced) %>%
+    predict(test.data) %>% bind_cols(test.data),
+  XGB_OPT = boost_tree(mode="classification", trees=xgb.trees, mtry=xgb.mtry, tree_depth = xgb.tree.depth) %>%
+    fit(Outcome ~ ., train.balanced) %>%
+    predict(test.data) %>% bind_cols(test.data),
+  .id="Model"
+)
+```
+
+### Calculate the metrics
+
+#### Default Params
+
+```{r}
+all.metrics = all.test.preds %>%
+  group_by(Model) %>%
+  sba_metrics(truth=Outcome, estimate=.pred_class)
+```
+
+```{r}
+all.metrics %>%
+  pivot_wider(id_cols=Model, names_from=.metric, values_from = .estimate)
+```
+
+
+```{r}
+ggplot(all.metrics) +
+  aes(x=.metric, y=.estimate, fill=Model) +
+  geom_col(position='dodge') +
+  scale_fill_brewer(palette = 'Dark2') +
+  xlab("Metric Name") + 
+  ylab("Metric Estimate") +
+  ggtitle("Model Metric Value Comparison") +
+  theme_minimal()
+```
 ## Test the data
 
 #### XGB: Re-evaluate against the validation data
@@ -534,10 +671,5 @@ sba_metrics(xgb.test.data, truth=Outcome, estimate=.pred_class)
 ```
 
 
-## Evaluate Model/Create Charts
-
-
-
-
-## Outcomes
+## Outcomes - Charts/Results
 
