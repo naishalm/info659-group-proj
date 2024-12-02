@@ -373,6 +373,9 @@ xgb.valid.data = valid.data %>%
 ```{r}
 sba_metrics(xgb.valid.data, truth=Outcome, estimate=.pred_class)
 ```
+
+
+
 ## Tune the hyperparameters for our selected model XGB
 
 ### XGBoost Tuning - tune tree size, mtry, and tree depth
@@ -500,13 +503,25 @@ xgb.valid.data = valid.data %>%
 sba_metrics(xgb.valid.data, truth=Outcome, estimate=.pred_class)
 ```
 
-## Test the data - Naishal/Megan
+## Test the data
+
+#### XGB: Re-evaluate against the validation data
+```{r}
+xgb.test.data = test.data %>%
+  bind_cols(predict(xgb.model, test.data)) %>%
+  glimpse()
+```
+
+#### XGB: Apply the metrics
+```{r}
+sba_metrics(xgb.test.data, truth=Outcome, estimate=.pred_class)
+```
+
+
+## Evaluate Model/Create Charts
 
 
 
 
-## Evaluate the data - Naishal
-
-
-## Outcomes - Megan/Jinsu
+## Outcomes
 
