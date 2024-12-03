@@ -505,18 +505,44 @@ sba_metrics(xgb.valid.data, truth=Outcome, estimate=.pred_class)
 
 ## Test the data
 
+# Load required libraries
+library(xgboost)
+library(pROC)  # For AUC calculation
+library(dplyr) # For data manipulation
+
+# Ensure the prepare_xgb_data function is correctly defined
+prepare_xgb_data <- function(data) {
+  # One-hot encode categorical variables and prepare X and y
+  data_encoded <- data %>%
+    mutate(across(where(is.character), as.factor)) %>%
+    mutate(across(where(is.factor), as.numeric))
+  
+  X <- as.matrix(data_encoded %>% select(-Outcome))
+  y <- as.numeric(data$Outcome == "Transported to Hospital")
+  
+  return(list(X = X, y = y))
+}
+
 # Prepare the test data for evaluation
 test_xgb_data <- prepare_xgb_data(test.data)
 
-# Predict on test data
+# Predict on test data using the trained model
 test_pred <- predict(xgb_results$model, test_xgb_data$X)
 test_pred_binary <- ifelse(test_pred > 0.5, 1, 0)
 
 # Calculate test metrics
+confusion_matrix <- table(Predicted = test_pred_binary, Actual = test_xgb_data$y)
+accuracy <- mean(test_pred_binary == test_xgb_data$y)
+
+# Calculate AUC using pROC
+auc_result <- roc(test_xgb_data$y, test_pred)
+auc_value <- auc(auc_result)
+
+# Store metrics in a list
 test_metrics <- list(
-  confusion_matrix = table(Predicted = test_pred_binary, Actual = test_xgb_data$y),
-  accuracy = mean(test_pred_binary == test_xgb_data$y),
-  auc = MLmetrics::AUC(y_pred = test_pred, y_true = test_xgb_data$y)
+  confusion_matrix = confusion_matrix,
+  accuracy = accuracy,
+  auc = auc_value
 )
 
 # Print the test metrics
@@ -526,11 +552,12 @@ print(test_metrics$confusion_matrix)
 print(paste("Accuracy:", round(test_metrics$accuracy, 3)))
 print(paste("AUC:", round(test_metrics$auc, 3)))
 
-# Plot the feature importance
+# Feature importance using xgboost's inbuilt function
 feature_importance <- xgb.importance(model = xgb_results$model)
 
 # Visualize feature importance
 xgb.plot.importance(importance_matrix = feature_importance)
+
 
 
 #### XGB: Re-evaluate against the validation data
