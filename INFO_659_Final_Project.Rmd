@@ -513,10 +513,11 @@ test_pred <- predict(xgb_results$model, test_xgb_data$X)
 test_pred_binary <- ifelse(test_pred > 0.5, 1, 0)
 
 # Calculate test metrics
+library(MLmetrics)
 test_metrics <- list(
   confusion_matrix = table(Predicted = test_pred_binary, Actual = test_xgb_data$y),
   accuracy = mean(test_pred_binary == test_xgb_data$y),
-  auc = MLmetrics::AUC(y_pred = test_pred, y_true = test_xgb_data$y)
+  auc = AUC(y_pred = test_pred, y_true = test_xgb_data$y)
 )
 
 # Print the test metrics
@@ -531,6 +532,7 @@ feature_importance <- xgb.importance(model = xgb_results$model)
 
 # Visualize feature importance
 xgb.plot.importance(importance_matrix = feature_importance)
+
 
 
 #### XGB: Re-evaluate against the validation data
